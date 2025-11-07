@@ -118,9 +118,7 @@ st.markdown("""
 
 def main():
     st.title("💼 Sistema de Recrutamento")
-    
-    st.subheader("Login")
-    
+        
     # Formulário SIMPLES sem colunas complexas
     with st.form("login_form"):
         usuario = st.text_input("Usuário")
@@ -144,4 +142,5 @@ def main():
             st.switch_page("pages/1_Cadastro_Usuario.py")
 
 if __name__ == "__main__":
+
     main()
