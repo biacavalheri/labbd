@@ -6,7 +6,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# CSS para FORÇAR tema claro e fundo branco
+# CSS personalizado com tema azul escuro
 st.markdown("""
 <style>
     /* Forçar tema claro */
@@ -69,14 +69,13 @@ st.markdown("""
 
 def main():
     st.title("💼 Sistema de Recrutamento")
-    
-    st.subheader("Login")
-    
-    # Formulário
+        
+    # Formulário SIMPLES sem colunas complexas
     with st.form("login_form"):
         usuario = st.text_input("Usuário")
         senha = st.text_input("Senha", type="password")
         
+        # Botões lado a lado - maneira mais simples
         col1, col2 = st.columns(2)
         
         with col1:
@@ -94,4 +93,6 @@ def main():
             st.switch_page("pages/1_Cadastro_Usuario.py")
 
 if __name__ == "__main__":
+
     main()
+
