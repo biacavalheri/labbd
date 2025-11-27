@@ -125,7 +125,7 @@ def main():
             st.write(f"**Idiomas:** {idiomas_list}")
 
             # =============================================================
-            # 🔥 TOP 2 VAGAS MAIS ADERENTES (match_score)
+            # 🔥 TOP 2 VAGAS MAIS ADERENTES
             # =============================================================
             conn = get_connection()
             cur = conn.cursor()
