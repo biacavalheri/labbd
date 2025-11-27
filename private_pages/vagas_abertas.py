@@ -136,27 +136,6 @@ def main():
             st.write(f"**Tipo:** {tipo_v}")
             st.write(f"**Salário:** R$ {salario}")
 
-            # TOP MATCHES
-            conn = get_connection()
-            cur = conn.cursor()
-            cur.execute("""
-                SELECT c.nome, ms.match_score
-                FROM match_score ms
-                JOIN curriculo c ON c.id = ms.id_curriculo
-                WHERE ms.id_vaga = %s
-                ORDER BY ms.match_score DESC
-                LIMIT 2;
-            """, (vid,))
-            top = cur.fetchall()
-            conn.close()
-
-            st.subheader("🔥 Top 2 currículos mais aderentes:")
-            if not top:
-                st.write("Ainda não há match_score para esta vaga.")
-            else:
-                for nome_c, score in top:
-                    st.write(f"**{nome_c}** — Score: {score}")
-
             # Verificar candidatura
             conn = get_connection()
             cur = conn.cursor()
@@ -182,3 +161,4 @@ def main():
                     conn.close()
                     st.success("Candidatura registrada!")
                     st.rerun()
+
