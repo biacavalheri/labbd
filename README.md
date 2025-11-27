@@ -11,6 +11,8 @@ Este projeto consiste no desenvolvimento de um **Sistema de Recrutamento complet
 
 O sistema implementa de forma simples e funcional o fluxo entre **empresas e candidatos**, possibilitando o gerenciamento de currículos, vagas, candidaturas e níveis de aderência (*match score*).
 
+O sistema pode ser acessado através da URL a seguir: https://sistema-recrutamento-labbd.streamlit.app/
+
 ---
 
 # 🗄️ **Modelagem e Estrutura do Banco de Dados**
