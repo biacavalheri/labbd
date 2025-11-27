@@ -1,4 +1,4 @@
-# **Sistema de Recrutamento**
+# 📄 **Sistema de Recrutamento**
 
 ## 🧾 **Descrição Geral do Projeto**
 
@@ -11,13 +11,107 @@ Este projeto consiste no desenvolvimento de um **Sistema de Recrutamento complet
 
 O sistema implementa de forma simples e funcional o fluxo entre **empresas e candidatos**, possibilitando o gerenciamento de currículos, vagas, candidaturas e níveis de aderência (*match score*).
 
-O trabalho foi concebido como atividade prática da disciplina **Laboratório de Banco de Dados**.
+---
+
+# 🗄️ **Modelagem e Estrutura do Banco de Dados**
+
+O banco de dados foi modelado para garantir **flexibilidade, escalabilidade e normalização**, seguindo princípios da 3FN.
+
+Abaixo estão todas as tabelas essenciais do sistema:
 
 ---
 
-# 🏗️ **Arquitetura do Sistema**
+## 🟦 **Tabela: vaga**
+Armazena informações de vagas cadastradas.
 
-O projeto é estruturado da seguinte forma:
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | SERIAL PK | Identificador único |
+| titulo | TEXT | Título da vaga |
+| descricao | TEXT | Descrição completa |
+| empresa | TEXT | Empresa ofertante |
+| tipo_contratacao | TEXT | Ex.: CLT, PJ |
+| estado | TEXT | UF |
+| cidade | TEXT | Cidade |
+| salario | NUMERIC | Faixa salarial |
+
+---
+
+## 🟩 **Tabela: curriculo**
+Armazena informações detalhadas dos currículos.
+
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | SERIAL PK | Identificador único |
+| nome | TEXT | Nome completo |
+| email | TEXT | E-mail |
+| telefone | TEXT | Telefone |
+| formacao | TEXT | Formação acadêmica |
+| experiencia | TEXT | Experiência prévia |
+| resumo | TEXT | Resumo profissional |
+| empresas_previas | TEXT | Histórico de empresas |
+| idiomas | TEXT | Lista de idiomas |
+| certificacoes | TEXT | Certificações |
+
+---
+
+## 🟧 **Tabela: skill**
+Lista de habilidades únicas utilizadas em vagas e currículos.
+
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | SERIAL PK | Identificador único |
+| nome | TEXT UNIQUE | Nome da skill |
+
+---
+
+## 🟨 **Tabela: vaga_skill**
+Relacionamento N:N entre vagas e skills.
+
+| Campo | Tipo | FK |
+|-------|------|----|
+| id_vaga | INT | → vaga(id) |
+| id_skill | INT | → skill(id) |
+
+---
+
+## 🟪 **Tabela: curriculo_skill**
+Relacionamento N:N entre currículos e skills.
+
+| Campo | Tipo | FK |
+|-------|------|----|
+| id_curriculo | INT | → curriculo(id) |
+| id_skill | INT | → skill(id) |
+
+---
+
+## 🟥 **Tabela: candidatura**
+Armazena todas as candidaturas realizadas pelos currículos ou oferecidas pelas empresas.
+
+| Campo | Tipo | Descrição |
+|-------|------|------------|
+| id_curriculo | INT FK | Currículo participante |
+| id_vaga | INT FK | Vaga relacionada |
+| data_candidatura | TIMESTAMP | Data da operação |
+
+A tabela só aceita **uma candidatura por vaga + currículo**, evitando duplicações.
+
+---
+
+## 🟫 **Tabela: match_score**
+Armazena o nível de aderência entre um currículo e uma vaga, atribuído manualmente pelo admin.
+
+| Campo | Tipo |
+|-------|------|
+| id_curriculo | INT FK |
+| id_vaga | INT FK |
+| score | INT CHECK (0–100) |
+
+Usada para exibir automaticamente os **2 maiores matches** de cada vaga ou currículo.
+
+---
+
+# 🏗️ **Arquitetura do Sistema (Código)**
 
 ```
 /app.py                     → Arquivo principal da aplicação
@@ -28,98 +122,80 @@ O projeto é estruturado da seguinte forma:
     curriculos_ativos.py    → Visualização e oferta de vagas
     match_score_admin.py    → Gerenciamento do match score
     gerenciar_candidatos.py → Lista de candidatos de cada vaga
-    minhas_candidaturas.py  → Lista de candidaturas de um currículo
-    db.py                   → Conexão com PostgreSQL (Aiven Cloud)
+    minhas_candidaturas.py  → Lista de candidaturas realizadas
+    db.py                   → Conexão segura com o PostgreSQL
 ```
-
----
-
-# 🧮 **Banco de Dados**
-
-As tabelas utilizadas no sistema são:
-
-- **vaga**  
-- **curriculo**  
-- **skill**  
-- **vaga_skill**  
-- **curriculo_skill**  
-- **candidatura**  
-- **match_score**
 
 ---
 
 # 🔐 **Sistema de Login**
 
-Existem dois perfis de acesso ao sistema:
+Existem dois perfis principais:
+
+---
 
 ## 👔 **admin_vagas**
-Acesso destinado a administradores responsáveis por vagas.
 
 ### Funcionalidades:
 - Cadastrar novas vagas  
+- Selecionar uma vaga para gerenciamento  
 - Visualizar currículos disponíveis  
-- Oferecer vagas diretamente a candidatos  
-- Visualizar candidatos inscritos em cada vaga (via tabela *candidatura*)  
-- Gerenciar níveis de aderência (*match score*)  
-- Utilizar filtros de busca avançados para seleção de candidatos
+- Oferecer vaga a candidatos  
+- Ver candidatos inscritos  
+- Atribuir match score 0–100  
+- Ver os dois currículos mais aderentes  
 
 ---
 
 ## 👤 **admin_curriculos**
-Acesso destinado a administradores responsáveis por currículos.
 
 ### Funcionalidades:
 - Cadastrar novos currículos  
+- Selecionar um currículo para gerenciamento  
 - Visualizar vagas abertas  
-- Candidatar currículos às vagas  
-- Ver histórico de candidaturas realizadas  
-- Utilizar filtros de busca avançados para seleção de vagas
+- Candidatar currículo às vagas  
+- Ver histórico de candidaturas  
+- Ver as duas vagas com maior match score  
 
 ---
 
-# 🔄 **Fluxo de Funcionamento**
+# 🔄 **Fluxo Operacional**
 
-### 📌 **Fluxo para admin_curriculos**
-1. Seleciona um currículo na interface  
-2. Pesquisa vagas usando filtros (palavras-chave, localidade, tipo de contratação, faixa salarial etc.)  
-3. Visualiza detalhes e realiza candidatura  
-4. Consulta suas candidaturas na página *Minhas Candidaturas*
+## Para admin_curriculos:
+1. Seleciona um currículo  
+2. Filtra vagas por palavras‑chave, localização, tipo de contratação, salário etc.  
+3. Clica em *Candidatar-se*  
+4. Consulta todas as candidaturas realizadas  
 
-### 📌 **Fluxo para admin_vagas**
-1. Seleciona uma vaga a ser administrada  
-2. Pesquisa currículos usando filtros  
-3. Visualiza detalhes e oferece a vaga ao candidato desejado  
-4. Gerencia match score manualmente  
-5. Acompanha os candidatos inscritos via página *Gerenciar Candidatos*
+## Para admin_vagas:
+1. Seleciona uma vaga no topo da página  
+2. Filtra currículos  
+3. Visualiza detalhes e oferece a vaga a um candidato  
+4. Atribui match score  
+5. Visualiza todos os inscritos na vaga  
 
 ---
 
 # 🧰 **Tecnologias Utilizadas**
 
-| Tecnologia | Finalidade |
+| Tecnologia | Descrição |
 |-----------|------------|
-| **Streamlit** | Interface web |
-| **PostgreSQL** | Banco de dados relacional |
-| **Aiven Cloud** | Hospedagem do banco PostgreSQL |
-| **psycopg2-binary** | Conexão Python ↔ PostgreSQL |
-| **Python 3.10+** | Linguagem principal do backend |
+| **Streamlit** | Framework web |
+| **Python** | Backend |
+| **PostgreSQL** | Banco de dados |
+| **Aiven Cloud** | Hospedagem gerenciada |
+| **psycopg2-binary** | Conexão com o banco |
+| **pandas** | Manipulação de dados |
+| **GitHub** | Versionamento e deploy |
 
 ---
 
 # 🚀 **Deploy**
 
-O deploy foi realizado utilizando o **Streamlit Cloud**, com dependências declaradas em:
+O deploy foi realizado no **Streamlit Cloud**, com dependências especificadas em:
 
 ```
 requirements.txt
-```
-
-Incluindo:
-
-```
-streamlit
-psycopg2-binary
-pandas
 ```
 
 ---
