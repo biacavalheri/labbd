@@ -150,11 +150,11 @@ def main():
                     v.id, 
                     v.titulo, 
                     v.empresa, 
-                    ms.score
+                    ms.match_score
                 FROM match_score ms
                 JOIN vaga v ON v.id = ms.id_vaga
                 WHERE ms.id_curriculo = %s
-                ORDER BY ms.score DESC
+                ORDER BY ms.match_score DESC
                 LIMIT 2;
             """, (cid,))
 
@@ -203,3 +203,4 @@ def main():
 
                     st.success("Vaga oferecida!")
                     st.rerun()
+
