@@ -110,6 +110,7 @@ def main():
     rows = cur.fetchall()
     conn.close()
 
+
     # =============================================================
     # 5) EXIBIR RESULTADOS
     # =============================================================
@@ -123,7 +124,35 @@ def main():
             st.write(f"**Skills:** {skills_list}")
             st.write(f"**Idiomas:** {idiomas_list}")
 
-            # Verificar oferta pré-existente
+            # =============================================================
+            # 🔥 TOP 2 VAGAS MAIS ADERENTES (match_score)
+            # =============================================================
+            conn = get_connection()
+            cur = conn.cursor()
+
+            cur.execute("""
+                SELECT v.id, v.titulo, v.empresa, ms.score
+                FROM match_score ms
+                JOIN vaga v ON v.id = ms.id_vaga
+                WHERE ms.id_curriculo = %s
+                ORDER BY ms.score DESC
+                LIMIT 2;
+            """, (cid,))
+
+            top_vagas = cur.fetchall()
+            conn.close()
+
+            st.subheader("🔥 Top 2 Vagas Mais Aderentes")
+
+            if len(top_vagas) == 0:
+                st.write("Nenhum match registrado ainda.")
+            else:
+                for vvg in top_vagas:
+                    st.write(f"**{vvg[1]} ({vvg[2]})** — score: **{vvg[3]}**")
+
+            # =============================================================
+            # VERIFICAR OFERTA EXISTENTE
+            # =============================================================
             conn = get_connection()
             cur = conn.cursor()
             cur.execute("""
@@ -133,30 +162,6 @@ def main():
             """, (cid, id_vaga))
             ja_ofertado = cur.fetchone() is not None
             conn.close()
-
-            # Mostrar TOP 2 vagas mais aderentes a este currículo
-            conn = get_connection()
-            cur = conn.cursor()
-            
-            cur.execute("""
-                SELECT v.id, v.titulo, v.empresa, ms.match_score
-                FROM match_score ms
-                JOIN vaga v ON v.id = ms.id_vaga
-                WHERE ms.id_curriculo = %s
-                ORDER BY ms.match_score DESC
-                LIMIT 2;
-            """, (c["id"],))
-            
-            top_vagas = cur.fetchall()
-            conn.close()
-            
-            st.subheader("🔥 Top 2 Vagas Mais Aderentes")
-            
-            if len(top_vagas) == 0:
-                st.write("Nenhum match registrado ainda.")
-            else:
-                for vvg in top_vagas:
-                    st.write(f"**{vvg[1]} ({vvg[2]})** — score: **{vvg[3]}**")
 
             if ja_ofertado:
                 st.info("📌 Já existe oferta ou candidatura para este currículo.")
@@ -172,4 +177,3 @@ def main():
                     conn.close()
                     st.success("Vaga oferecida!")
                     st.rerun()
-
