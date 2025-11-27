@@ -47,10 +47,9 @@ CREATE TABLE candidatura (
     data TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE candidatura (
-    id SERIAL PRIMARY KEY,
-    id_curriculo INT NOT NULL REFERENCES curriculo(id) ON DELETE CASCADE,
-    id_vaga INT NOT NULL REFERENCES vaga(id) ON DELETE CASCADE,
-    origem VARCHAR(20) NOT NULL CHECK (origem IN ('candidato', 'empresa')),
-    data TIMESTAMP DEFAULT NOW()
+CREATE TABLE match_score (
+    id_curriculo INT REFERENCES curriculo(id),
+    id_vaga INT REFERENCES vaga(id),
+    score INT CHECK (score BETWEEN 0 AND 100),
+    PRIMARY KEY (id_curriculo, id_vaga)
 );
