@@ -132,7 +132,7 @@ Usada para exibir automaticamente os **2 maiores matches** de cada vaga ou curr�
 
 # 🔐 **Sistema de Login**
 
-Existem dois perfis principais:
+Existem dois usuários distintos que acessam este sistema. Para acessá-los, basta logar com o usuário desejado e a senha 123.
 
 ---
 
