@@ -23,27 +23,31 @@ def main():
         return
 
     vagas_dict = {f"{v[1]} ({v[2]}) — ID {v[0]}": v[0] for v in vagas_rows}
-    vaga_selecionada = st.selectbox("Selecione a vaga para visualizar currículos:", list(vagas_dict.keys()))
+    vaga_selecionada = st.selectbox(
+        "Selecione a vaga para visualizar currículos:",
+        list(vagas_dict.keys())
+    )
     id_vaga = vagas_dict[vaga_selecionada]
 
     st.divider()
     st.subheader("⚙️ Filtros de Busca")
 
     # =============================================================
-    # 2) CARREGAR LISTAS DE SKILLS E IDIOMAS
+    # 2) LISTAS DE FILTROS
     # =============================================================
     conn = get_connection()
     cur = conn.cursor()
 
-    # Lista de idiomas
+    # IDIOMAS
     cur.execute("""
-        SELECT DISTINCT unnest(string_to_array(idiomas, ',')) 
-        FROM curriculo;
+        SELECT DISTINCT unnest(string_to_array(idiomas, ',')) AS idioma
+        FROM curriculo
+        WHERE idiomas IS NOT NULL AND idiomas <> '';
     """)
     idiomas_rows = cur.fetchall()
-    idiomas = sorted({row[0].strip() for row in idiomas_rows if row[0]})
+    idiomas = sorted({row[0].strip() for row in idiomas_rows if row[0] and row[0].strip()})
 
-    # Lista de skills
+    # SKILLS
     cur.execute("SELECT nome FROM skill ORDER BY nome;")
     skills = [row[0] for row in cur.fetchall()]
 
@@ -52,7 +56,9 @@ def main():
     # =============================================================
     # 3) INTERFACE DE FILTROS
     # =============================================================
-    palavra_chave = st.text_input("Buscar por palavras (nome, formação, resumo, experiência)")
+    palavra_chave = st.text_input(
+        "Buscar por palavras (nome, formação, resumo, experiência)"
+    )
 
     col1, col2 = st.columns(2)
     with col1:
@@ -67,14 +73,21 @@ def main():
     cur = conn.cursor()
 
     query = """
-        SELECT c.id, c.nome, c.formacao, c.experiencia,
-               COALESCE(string_agg(s.nome, ', '), '') AS skills,
-               c.idiomas, c.resumo, c.empresas_previas
+        SELECT 
+            c.id, 
+            c.nome, 
+            c.formacao, 
+            c.experiencia,
+            COALESCE(string_agg(s.nome, ', '), '') AS skills,
+            c.idiomas, 
+            c.resumo, 
+            c.empresas_previas
         FROM curriculo c
         LEFT JOIN curriculo_skill cs ON cs.id_curriculo = c.id
         LEFT JOIN skill s ON s.id = cs.id_skill
         WHERE 1=1
     """
+
     params = []
 
     if palavra_chave:
@@ -104,12 +117,14 @@ def main():
         """
         params.append(skill)
 
-    query += " GROUP BY c.id ORDER BY c.id;"
+    query += """
+        GROUP BY c.id
+        ORDER BY c.id;
+    """
 
     cur.execute(query, tuple(params))
     rows = cur.fetchall()
     conn.close()
-
 
     # =============================================================
     # 5) EXIBIR RESULTADOS
@@ -131,7 +146,11 @@ def main():
             cur = conn.cursor()
 
             cur.execute("""
-                SELECT v.id, v.titulo, v.empresa, ms.score
+                SELECT 
+                    v.id, 
+                    v.titulo, 
+                    v.empresa, 
+                    ms.score
                 FROM match_score ms
                 JOIN vaga v ON v.id = ms.id_vaga
                 WHERE ms.id_curriculo = %s
@@ -144,36 +163,43 @@ def main():
 
             st.subheader("🔥 Top 2 Vagas Mais Aderentes")
 
-            if len(top_vagas) == 0:
+            if not top_vagas:
                 st.write("Nenhum match registrado ainda.")
             else:
                 for vvg in top_vagas:
                     st.write(f"**{vvg[1]} ({vvg[2]})** — score: **{vvg[3]}**")
 
             # =============================================================
-            # VERIFICAR OFERTA EXISTENTE
+            # VERIFICAR SE JÁ EXISTE UMA OFERTA
             # =============================================================
             conn = get_connection()
             cur = conn.cursor()
+
             cur.execute("""
                 SELECT 1 FROM candidatura
                 WHERE id_curriculo = %s AND id_vaga = %s
                 LIMIT 1;
             """, (cid, id_vaga))
+
             ja_ofertado = cur.fetchone() is not None
             conn.close()
 
+            # Botão
             if ja_ofertado:
                 st.info("📌 Já existe oferta ou candidatura para este currículo.")
             else:
                 if st.button("Oferecer vaga", key=f"offer_{cid}"):
+
                     conn = get_connection()
                     cur = conn.cursor()
+
                     cur.execute("""
                         INSERT INTO candidatura (id_curriculo, id_vaga, origem)
                         VALUES (%s, %s, 'empresa');
                     """, (cid, id_vaga))
+
                     conn.commit()
                     conn.close()
+
                     st.success("Vaga oferecida!")
                     st.rerun()
