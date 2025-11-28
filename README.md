@@ -126,55 +126,51 @@ Usada para exibir automaticamente os **2 maiores matches** de cada vaga ou curr�
     gerenciar_candidatos.py → Lista de candidatos de cada vaga
     minhas_candidaturas.py  → Lista de candidaturas realizadas
     db.py                   → Conexão segura com o PostgreSQL
+    vagas_publicas.py       → Lista vagas abertas sem necessidade de login
+    vagas_mapa_publico.py   → Mapa interativo das vagas      
 ```
 
 ---
 
-# 🔐 **Sistema de Login**
+# 🔐 Perfis de Acesso
 
-Existem dois usuários distintos que acessam este sistema. Para acessá-los, basta logar com o usuário desejado e a senha 123.
+O sistema conta com **três perfis distintos**, cada um com permissões e funcionalidades específicas:
 
----
+### 👤 1. Candidato
+- Cadastra e atualiza seu currículo  
+- Consulta vagas abertas  
+- Filtra vagas por localização, salário, tipo de contratação e skills  
+- Candidata-se às vagas  
+- Acompanha suas candidaturas  
+- Visualiza vagas com maior match score  
 
-## 👔 **admin_vagas**
+### 🏢 2. Empregador
+- Cadastra vagas  
+- Visualiza currículos disponíveis  
+- Oferece vagas diretamente a candidatos  
+- Analisa inscritos em cada vaga  
+- Define match score entre currículo e vaga  
+- Vê currículos mais aderentes  
 
-### Funcionalidades:
-- Cadastrar novas vagas  
-- Selecionar uma vaga para gerenciamento  
-- Visualizar currículos disponíveis  
-- Oferecer vaga a candidatos  
-- Ver candidatos inscritos  
-- Atribuir match score 0–100  
-- Ver os dois currículos mais aderentes  
-
----
-
-## 👤 **admin_curriculos**
-
-### Funcionalidades:
-- Cadastrar novos currículos  
-- Selecionar um currículo para gerenciamento  
-- Visualizar vagas abertas  
-- Candidatar currículo às vagas  
-- Ver histórico de candidaturas  
-- Ver as duas vagas com maior match score  
+### 🛠️ 3. Administrador
+- Supervisiona todas as vagas e currículos  
+- Gerencia candidaturas  
+- Controla match score  
+- Tem acesso total às rotinas internas de gestão  
 
 ---
 
-# 🔄 **Fluxo Operacional**
+# 🌐 Páginas Públicas
 
-## Para admin_curriculos:
-1. Seleciona um currículo  
-2. Filtra vagas por palavras‑chave, localização, tipo de contratação, salário etc.  
-3. Clica em *Candidatar-se*  
-4. Consulta todas as candidaturas realizadas  
+Além das páginas com login obrigatório, foram adicionadas páginas acessíveis a qualquer visitante:
 
-## Para admin_vagas:
-1. Seleciona uma vaga no topo da página  
-2. Filtra currículos  
-3. Visualiza detalhes e oferece a vaga a um candidato  
-4. Atribui match score  
-5. Visualiza todos os inscritos na vaga  
+### 📄 vagas_publicas.py
+Lista **todas as vagas abertas** sem necessidade de autenticação.
+
+### 🗺 vagas_mapa_publico.py
+Exibe **todas as vagas no mapa interativo**.
+
+Essas páginas permitem que qualquer usuário explore as vagas publicamente, mesmo sem cadastro.
 
 ---
 
