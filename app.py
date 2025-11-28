@@ -9,8 +9,9 @@ st.set_page_config(
 
 # Usuários do sistema
 USERS = {
-    "admin_vagas": {"senha": "123", "permissao": "vagas"},
-    "admin_curriculos": {"senha": "123", "permissao": "curriculos"},
+    "empregador": {"senha": "123", "permissao": "vagas"},
+    "candidato": {"senha": "123", "permissao": "curriculos"},
+    "admin": {"senha": "123", "permissao": "admin"},
 }
 
 # Páginas principais por permissão
@@ -19,13 +20,27 @@ PAGES = {
         "Cadastrar Nova Vaga": "cadastro_vagas",
         "Visualizar Currículos": "curriculos_ativos",
         "Gerenciar Candidatos": "gerenciar_candidatos",
-        "Gerenciar Match Score": "match_score_admin",
     },
     "curriculos": {
         "Cadastrar Novo Currículo": "cadastro_curriculos",
         "Visualizar Vagas": "vagas_abertas",
         "Minhas Candidaturas": "minhas_candidaturas",
+    },
+    "admin": {
+        "Cadastrar Nova Vaga": "cadastro_vagas",
+        "Cadastrar Novo Currículo": "cadastro_curriculos",
+        "Visualizar Vagas": "vagas_abertas",
+        "Visualizar Currículos": "curriculos_ativos",
+        "Gerenciar Match Score": "match_score_admin",
     }
+}
+
+# ---------------------------------------------------------------
+# Páginas públicas (sem login)
+# ---------------------------------------------------------------
+PAGES_PUBLIC = {
+    "vagas_publicas": "vagas_publicas",
+    "vagas_mapa_publico": "vagas_mapa_publico"
 }
 
 def load_page(page_name):
@@ -36,9 +51,25 @@ def main():
     st.title("💼 Sistema de Recrutamento")
 
     # ----------------------------------------------------
-    # LOGIN
+    # LOGIN OU ACESSO PÚBLICO
     # ----------------------------------------------------
     if "usuario" not in st.session_state:
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            if st.button("🔍 Ver vagas abertas"):
+                st.session_state["page"] = "vagas_publicas"
+                st.rerun()
+
+        with col2:
+            if st.button("🗺️ Ver distribuição geográfica das vagas"):
+                st.session_state["page"] = "vagas_mapa_publico"
+                st.rerun()
+
+        # ------------------------------------------
+        # FORMULÁRIO DE LOGIN
+        # ------------------------------------------
         with st.form("login_form"):
             usuario = st.text_input("Usuário")
             senha = st.text_input("Senha", type="password")
@@ -51,8 +82,15 @@ def main():
                     st.rerun()
                 else:
                     st.error("Credenciais inválidas.")
-        return
-    
+
+        # Caso tenha página pública selecionada
+        if "page" in st.session_state:
+            if st.session_state["page"] in PAGES_PUBLIC:
+                load_page(st.session_state["page"])
+                return
+
+        return  # evita carregar o restante da interface logada
+
     # ----------------------------------------------------
     # HOME LOGADO
     # ----------------------------------------------------
@@ -61,7 +99,7 @@ def main():
     st.sidebar.success(f"Logado como: **{st.session_state['usuario']}**")
     st.sidebar.divider()
 
-    # Botões do menu
+    # Botões do menu lateral
     for label, page in PAGES[perm].items():
         if st.sidebar.button(label):
             st.session_state["page"] = page
@@ -73,6 +111,8 @@ def main():
     # Carrega página escolhida
     if "page" in st.session_state:
         load_page(st.session_state["page"])
+        return
+
 
 if __name__ == "__main__":
     main()
