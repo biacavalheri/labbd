@@ -2,13 +2,25 @@ import streamlit as st
 from private_pages.db import get_connection
 import pandas as pd
 import pydeck as pdk
-from geopy.geocoders import Nominatim
+
+# ==============================
+# FUNÇÃO PARA CARREGAR COORDENADAS
+# ==============================
+@st.cache_data
+def carregar_coordenadas():
+    df = pd.read_csv("private_pages/data/cidades_brasil.csv")
+    df["chave"] = df["cidade"] + "-" + df["estado"]
+    return df.set_index("chave")[["lat", "lon"]].to_dict("index")
+
 
 def main():
     st.title("🗺️ Distribuição Geográfica das Vagas")
     st.write("Explore o mapa interativo com detalhes das vagas ao clicar nos pontos.")
 
-    # Carregar vagas
+    # Carrega dicionário completo (5.568 cidades)
+    COORDENADAS = carregar_coordenadas()
+
+    # Carregar vagas do banco
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
@@ -23,53 +35,53 @@ def main():
         st.warning("Nenhuma vaga cadastrada para exibir no mapa.")
         return
 
-    # Criar DataFrame com tipos seguros
     df = pd.DataFrame(rows, columns=[
         "ID", "Título", "Empresa", "Cidade", "Estado",
         "Tipo", "Salário", "Descrição"
     ])
 
-    # Forçar todos os campos para string (exceto lat/lon que virão depois)
-    for col in df.columns:
-        df[col] = df[col].astype(str)
+    pontos = []
+    cidades_sem_coord = []
 
-    # Geocodificação
-    st.info("⚠️ Geocodificação automática. Aguarde alguns segundos para apresentação do mapa")
-
-    geolocator = Nominatim(user_agent="vaga_mapa_interativo")
-    coords = []
-
+    # Criar lista de pontos
     for _, row in df.iterrows():
-        try:
-            loc = geolocator.geocode(f"{row['Cidade']}, {row['Estado']}, Brasil")
-            if loc:
-                coords.append({
-                    "lat": float(loc.latitude),
-                    "lon": float(loc.longitude),
-                    "Título": row["Título"],
-                    "Empresa": row["Empresa"],
-                    "Cidade": row["Cidade"],
-                    "Estado": row["Estado"],
-                    "Tipo": row["Tipo"],
-                    "Salário": row["Salário"],
-                    "Descrição": row["Descrição"]
-                })
-        except:
-            pass
+        chave = f"{row['Cidade']}-{row['Estado']}"
 
-    if not coords:
-        st.error("Nenhuma coordenada pôde ser gerada.")
+        if chave in COORDENADAS:
+            lat = float(COORDENADAS[chave]["lat"])
+            lon = float(COORDENADAS[chave]["lon"])
+
+            pontos.append({
+                "lat": lat,
+                "lon": lon,
+                "Título": row["Título"],
+                "Empresa": row["Empresa"],
+                "Cidade": row["Cidade"],
+                "Estado": row["Estado"],
+                "Tipo": row["Tipo"],
+                "Salário": str(row["Salário"]),
+                "Descrição": row["Descrição"],
+            })
+        else:
+            cidades_sem_coord.append(chave)
+
+    # Aviso discreto sobre cidades não encontradas
+    if cidades_sem_coord:
+        st.warning(
+            "Algumas cidades não têm coordenadas cadastradas: "
+            + ", ".join(set(cidades_sem_coord))
+        )
+
+    if not pontos:
+        st.error("Nenhuma vaga pôde ser plotada no mapa.")
         return
 
-    coords_df = pd.DataFrame(coords)
+    coords_df = pd.DataFrame(pontos)
 
-    # -------------------------
     # CONFIGURAÇÃO DO MAPA
-    # -------------------------
-
     view_state = pdk.ViewState(
-        latitude=float(coords_df["lat"].mean()),
-        longitude=float(coords_df["lon"].mean()),
+        latitude=coords_df["lat"].mean(),
+        longitude=coords_df["lon"].mean(),
         zoom=4,
         pitch=30,
     )
@@ -79,7 +91,7 @@ def main():
         coords_df,
         get_position=["lon", "lat"],
         get_radius=25000,
-        get_color=[30, 136, 229, 180],
+        get_color=[30, 136, 229, 200],
         pickable=True,
         auto_highlight=True,
     )
@@ -88,22 +100,18 @@ def main():
         "html": """
         <b>{Título}</b><br>
         <b>Empresa:</b> {Empresa}<br>
-        <b>Local:</b> {Cidade}/{Estado}<br>
+        <b>Cidade:</b> {Cidade}/{Estado}<br>
         <b>Tipo:</b> {Tipo}<br>
         <b>Salário:</b> R$ {Salário}<br>
         """,
-        "style": {"backgroundColor": "rgba(20,20,20,0.85)", "color": "white"}
+        "style": {"backgroundColor": "rgba(30, 30, 30, 0.9)", "color": "white"}
     }
 
-    r = pdk.Deck(
+    deck = pdk.Deck(
         layers=[layer],
         initial_view_state=view_state,
         tooltip=tooltip,
         map_style="mapbox://styles/mapbox/light-v9",
     )
 
-    st.pydeck_chart(r)
-
-    st.divider()
-    st.subheader("📋 Vagas carregadas no mapa")
-    st.dataframe(coords_df, use_container_width=True)
+    st.pydeck_chart(deck)
