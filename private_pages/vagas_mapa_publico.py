@@ -23,14 +23,19 @@ def main():
         st.warning("Nenhuma vaga cadastrada para exibir no mapa.")
         return
 
+    # Criar DataFrame com tipos seguros
     df = pd.DataFrame(rows, columns=[
         "ID", "Título", "Empresa", "Cidade", "Estado",
         "Tipo", "Salário", "Descrição"
     ])
 
-    st.info("⚠️ Geocodificação automática.")
+    # Forçar todos os campos para string (exceto lat/lon que virão depois)
+    for col in df.columns:
+        df[col] = df[col].astype(str)
 
     # Geocodificação
+    st.info("⚠️ Geocodificação automática. Aguarde alguns segundos para apresentação do mapa")
+
     geolocator = Nominatim(user_agent="vaga_mapa_interativo")
     coords = []
 
@@ -39,9 +44,8 @@ def main():
             loc = geolocator.geocode(f"{row['Cidade']}, {row['Estado']}, Brasil")
             if loc:
                 coords.append({
-                    "lat": loc.latitude,
-                    "lon": loc.longitude,
-                    "ID": row["ID"],
+                    "lat": float(loc.latitude),
+                    "lon": float(loc.longitude),
                     "Título": row["Título"],
                     "Empresa": row["Empresa"],
                     "Cidade": row["Cidade"],
@@ -64,24 +68,22 @@ def main():
     # -------------------------
 
     view_state = pdk.ViewState(
-        latitude=coords_df["lat"].mean(),
-        longitude=coords_df["lon"].mean(),
+        latitude=float(coords_df["lat"].mean()),
+        longitude=float(coords_df["lon"].mean()),
         zoom=4,
-        pitch=20,
+        pitch=30,
     )
 
-    # Camada dos pontos
     layer = pdk.Layer(
         "ScatterplotLayer",
         coords_df,
         get_position=["lon", "lat"],
-        get_radius=30000,
-        get_color=[0, 100, 255, 160],
+        get_radius=25000,
+        get_color=[30, 136, 229, 180],
         pickable=True,
         auto_highlight=True,
     )
 
-    # Tooltip estilizado
     tooltip = {
         "html": """
         <b>{Título}</b><br>
@@ -90,10 +92,7 @@ def main():
         <b>Tipo:</b> {Tipo}<br>
         <b>Salário:</b> R$ {Salário}<br>
         """,
-        "style": {
-            "backgroundColor": "rgba(30, 30, 30, 0.8)",
-            "color": "white"
-        }
+        "style": {"backgroundColor": "rgba(20,20,20,0.85)", "color": "white"}
     }
 
     r = pdk.Deck(
