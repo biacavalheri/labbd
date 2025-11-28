@@ -203,4 +203,3 @@ def main():
 
                     st.success("Vaga oferecida!")
                     st.rerun()
-

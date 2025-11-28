@@ -161,4 +161,3 @@ def main():
                     conn.close()
                     st.success("Candidatura registrada!")
                     st.rerun()
-
