@@ -3,9 +3,6 @@ from private_pages.db import get_connection
 import pandas as pd
 import pydeck as pdk
 
-# ==============================
-# FUNÇÃO PARA CARREGAR COORDENADAS
-# ==============================
 @st.cache_data
 def carregar_coordenadas():
     df = pd.read_csv("private_pages/data/cidades_brasil.csv")
@@ -17,10 +14,10 @@ def main():
     st.title("🗺️ Distribuição Geográfica das Vagas")
     st.write("Explore o mapa interativo com detalhes das vagas ao clicar nos pontos.")
 
-    # Carrega dicionário completo (5.568 cidades)
+    # Coordenadas completas do Brasil
     COORDENADAS = carregar_coordenadas()
 
-    # Carregar vagas do banco
+    # Carregar vagas
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
@@ -40,20 +37,16 @@ def main():
         "Tipo", "Salário", "Descrição"
     ])
 
-    pontos = []
-    cidades_sem_coord = []
+    pontos_validos = []
 
-    # Criar lista de pontos
+    # Criar lista de pontos (somente cidades válidas)
     for _, row in df.iterrows():
         chave = f"{row['Cidade']}-{row['Estado']}"
-
         if chave in COORDENADAS:
-            lat = float(COORDENADAS[chave]["lat"])
-            lon = float(COORDENADAS[chave]["lon"])
-
-            pontos.append({
-                "lat": lat,
-                "lon": lon,
+            coord = COORDENADAS[chave]
+            pontos_validos.append({
+                "lat": float(coord["lat"]),
+                "lon": float(coord["lon"]),
                 "Título": row["Título"],
                 "Empresa": row["Empresa"],
                 "Cidade": row["Cidade"],
@@ -62,26 +55,18 @@ def main():
                 "Salário": str(row["Salário"]),
                 "Descrição": row["Descrição"],
             })
-        else:
-            cidades_sem_coord.append(chave)
 
-    # Aviso discreto sobre cidades não encontradas
-    if cidades_sem_coord:
-        st.warning(
-            "Algumas cidades não têm coordenadas cadastradas: "
-            + ", ".join(set(cidades_sem_coord))
-        )
-
-    if not pontos:
-        st.error("Nenhuma vaga pôde ser plotada no mapa.")
+    # Se nenhuma cidade válida for encontrada, mostrar aviso
+    if not pontos_validos:
+        st.error("Nenhuma vaga possui coordenadas válidas para plotar no mapa.")
         return
 
-    coords_df = pd.DataFrame(pontos)
+    coords_df = pd.DataFrame(pontos_validos)
 
-    # CONFIGURAÇÃO DO MAPA
+    # SEMPRE CENTRALIZA NO BRASIL
     view_state = pdk.ViewState(
-        latitude=coords_df["lat"].mean(),
-        longitude=coords_df["lon"].mean(),
+        latitude=-14.2350,
+        longitude=-51.9253,
         zoom=4,
         pitch=30,
     )
@@ -90,7 +75,7 @@ def main():
         "ScatterplotLayer",
         coords_df,
         get_position=["lon", "lat"],
-        get_radius=25000,
+        get_radius=28000,
         get_color=[30, 136, 229, 200],
         pickable=True,
         auto_highlight=True,
