@@ -12,9 +12,8 @@ def carregar_coordenadas():
 
 def main():
     st.title("🗺️ Distribuição Geográfica das Vagas")
-    st.write("Explore o mapa interativo com detalhes das vagas ao clicar nos pontos.")
+    st.write("Explore o mapa interativo e veja todas as vagas por cidade.")
 
-    # Coordenadas completas do Brasil
     COORDENADAS = carregar_coordenadas()
 
     # Carregar vagas
@@ -37,33 +36,43 @@ def main():
         "Tipo", "Salário", "Descrição"
     ])
 
-    pontos_validos = []
+    # AGRUPAR vagas por cidade
+    agrupado = df.groupby(["Cidade", "Estado"])
 
-    # Criar lista de pontos (somente cidades válidas)
-    for _, row in df.iterrows():
-        chave = f"{row['Cidade']}-{row['Estado']}"
-        if chave in COORDENADAS:
-            coord = COORDENADAS[chave]
-            pontos_validos.append({
-                "lat": float(coord["lat"]),
-                "lon": float(coord["lon"]),
-                "Título": row["Título"],
-                "Empresa": row["Empresa"],
-                "Cidade": row["Cidade"],
-                "Estado": row["Estado"],
-                "Tipo": row["Tipo"],
-                "Salário": str(row["Salário"]),
-                "Descrição": row["Descrição"],
-            })
+    pontos = []
 
-    # Se nenhuma cidade válida for encontrada, mostrar aviso
-    if not pontos_validos:
-        st.error("Nenhuma vaga possui coordenadas válidas para plotar no mapa.")
+    for (cidade, estado), grupo in agrupado:
+        chave = f"{cidade}-{estado}"
+
+        if chave not in COORDENADAS:
+            continue
+
+        coord = COORDENADAS[chave]
+
+        # Montar tooltip com todas as vagas daquela cidade
+        vagas_html = "<br>".join(
+            [f"• {row['Título']} — {row['Empresa']}" for _, row in grupo.iterrows()]
+        )
+
+        tooltip_html = f"""
+        <b>{cidade} - {estado}</b><br>
+        ----------------------------------<br>
+        {vagas_html}
+        """
+
+        pontos.append({
+            "lat": float(coord["lat"]),
+            "lon": float(coord["lon"]),
+            "tooltip": tooltip_html
+        })
+
+    if not pontos:
+        st.error("Nenhuma cidade válida para exibir no mapa.")
         return
 
-    coords_df = pd.DataFrame(pontos_validos)
+    coords_df = pd.DataFrame(pontos)
 
-    # SEMPRE CENTRALIZA NO BRASIL
+    # Centraliza no Brasil
     view_state = pdk.ViewState(
         latitude=-14.2350,
         longitude=-51.9253,
@@ -75,29 +84,24 @@ def main():
         "ScatterplotLayer",
         coords_df,
         get_position=["lon", "lat"],
-        get_radius=28000,
+        get_radius=30000,
         get_color=[30, 136, 229, 200],
         pickable=True,
         auto_highlight=True,
+        get_tooltip="tooltip"
     )
 
+    # Tooltip custom
     tooltip = {
-        "html": """
-        <b>{Título}</b><br>
-        <b>Empresa:</b> {Empresa}<br>
-        <b>Cidade:</b> {Cidade}/{Estado}<br>
-        <b>Tipo:</b> {Tipo}<br>
-        <b>Salário:</b> R$ {Salário}<br>
-        """,
-        "style": {"backgroundColor": "rgba(30, 30, 30, 0.9)", "color": "white"}
+        "html": "{tooltip}",
+        "style": {"backgroundColor": "rgba(20,20,20,0.9)", "color": "white"}
     }
 
     deck = pdk.Deck(
         layers=[layer],
         initial_view_state=view_state,
         tooltip=tooltip,
-        map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+        map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
     )
 
     st.pydeck_chart(deck)
-
