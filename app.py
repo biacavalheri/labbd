@@ -31,7 +31,6 @@ PAGES = {
         "Cadastrar Novo Currículo": "cadastro_curriculos",
         "Visualizar Vagas": "vagas_abertas",
         "Visualizar Currículos": "curriculos_ativos",
-        "Gerenciar Match Score": "match_score_admin",
     }
 }
 
@@ -116,3 +115,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
