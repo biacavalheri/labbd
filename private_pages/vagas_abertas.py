@@ -1,79 +1,86 @@
 import streamlit as st
 from private_pages.db import get_connection
 
+def calcular_match(curriculo_id, vaga_id):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT 
+            ts_rank_cd(
+                v.documento_tsv,
+                plainto_tsquery('portuguese', c.documento_tsv::text)
+            )
+        FROM curriculo c
+        JOIN vaga v ON v.id = %s
+        WHERE c.id = %s;
+    """, (vaga_id, curriculo_id))
+
+    result = cur.fetchone()
+    conn.close()
+
+    if not result or result[0] is None:
+        return 0.0
+
+    return round(result[0] * 100, 2)
+
+
 def main():
     st.title("🔍 Vagas Abertas")
 
-    # =============================================================
-    # 1) SELEÇÃO DO CURRÍCULO
-    # =============================================================
+    # Selecionar currículo
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("SELECT id, nome FROM curriculo ORDER BY nome;")
-    curriculos_rows = cur.fetchall()
+    rows = cur.fetchall()
     conn.close()
 
-    if not curriculos_rows:
+    if not rows:
         st.error("Nenhum currículo cadastrado.")
         return
 
-    curriculos_dict = {f"{row[1]} — ID {row[0]}": row[0] for row in curriculos_rows}
-    curriculo_selecionado = st.selectbox("Selecione o currículo candidato:", list(curriculos_dict.keys()))
-    id_curriculo = curriculos_dict[curriculo_selecionado]
+    curriculos_dict = {f"{n} — ID {i}": i for i, n in rows}
+    nome_escolhido = st.selectbox("Selecione o currículo:", curriculos_dict.keys())
+    id_curriculo = curriculos_dict[nome_escolhido]
 
     st.divider()
-    st.subheader("⚙️ Filtros de Busca")
+    st.subheader("Filtros")
 
-    # =============================================================
-    # 2) CARREGAR LISTAS PARA FILTROS
-    # =============================================================
     conn = get_connection()
     cur = conn.cursor()
 
     cur.execute("SELECT DISTINCT estado FROM vaga ORDER BY estado;")
-    estados = [x[0] for x in cur.fetchall() if x[0]]
+    estados = [e[0] for e in cur.fetchall() if e[0]]
 
     cur.execute("SELECT DISTINCT cidade FROM vaga ORDER BY cidade;")
-    cidades = [x[0] for x in cur.fetchall() if x[0]]
+    cidades = [c[0] for c in cur.fetchall() if c[0]]
 
     cur.execute("SELECT DISTINCT tipo_contratacao FROM vaga ORDER BY tipo_contratacao;")
-    tipos = [x[0] for x in cur.fetchall() if x[0]]
+    tipos = [t[0] for t in cur.fetchall() if t[0]]
 
     cur.execute("SELECT nome FROM skill ORDER BY nome;")
-    skills = [x[0] for x in cur.fetchall()]
+    skills = [s[0] for s in cur.fetchall()]
 
     conn.close()
 
-    # =============================================================
-    # 3) INTERFACE DOS FILTROS
-    # =============================================================
-    palavra_chave = st.text_input("Buscar por palavras (título, empresa, descrição)")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        estado = st.selectbox("Estado", ["Todos"] + estados)
-    with col2:
-        cidade = st.selectbox("Cidade", ["Todos"] + cidades)
-
-    col3, col4 = st.columns(2)
-    with col3:
-        salario_min = st.number_input("Salário mínimo", min_value=0.0, value=0.0)
-    with col4:
-        salario_max = st.number_input("Salário máximo", min_value=0.0, value=0.0)
-
+    palavra = st.text_input("Buscar por texto")
+    estado = st.selectbox("Estado", ["Todos"] + estados)
+    cidade = st.selectbox("Cidade", ["Todos"] + cidades)
     tipo = st.selectbox("Tipo de contratação", ["Todos"] + tipos)
     skill = st.selectbox("Skill desejada", ["Todas"] + skills)
 
-    # =============================================================
-    # 4) CONSULTAR VAGAS
-    # =============================================================
+    salario_min = st.number_input("Salário mínimo", min_value=0.0, value=0.0)
+    salario_max = st.number_input("Salário máximo", min_value=0.0, value=0.0)
+
+    # Buscar vagas
     conn = get_connection()
     cur = conn.cursor()
 
     query = """
-        SELECT v.id, v.titulo, v.empresa, v.cidade, v.estado,
-               v.tipo_contratacao, v.salario, v.descricao,
-               COALESCE(string_agg(s.nome, ', '), '') AS skills
+        SELECT 
+            v.id, v.titulo, v.empresa, v.cidade, v.estado,
+            v.tipo_contratacao, v.salario, v.descricao,
+            COALESCE(string_agg(s.nome, ', '), '') AS skills
         FROM vaga v
         LEFT JOIN vaga_skill vs ON vs.id_vaga = v.id
         LEFT JOIN skill s ON s.id = vs.id_skill
@@ -81,8 +88,8 @@ def main():
     """
     params = []
 
-    if palavra_chave:
-        like = f"%{palavra_chave}%"
+    if palavra:
+        like = f"%{palavra}%"
         query += " AND (v.titulo ILIKE %s OR v.empresa ILIKE %s OR v.descricao ILIKE %s)"
         params += [like, like, like]
 
@@ -109,9 +116,9 @@ def main():
     if skill != "Todas":
         query += """
             AND EXISTS (
-                SELECT 1 FROM vaga_skill a
-                JOIN skill b ON b.id = a.id_skill
-                WHERE a.id_vaga = v.id AND b.nome = %s
+                SELECT 1 FROM vaga_skill x
+                JOIN skill y ON y.id = x.id_skill
+                WHERE x.id_vaga = v.id AND y.nome = %s
             )
         """
         params.append(skill)
@@ -122,19 +129,26 @@ def main():
     vagas_rows = cur.fetchall()
     conn.close()
 
-    # =============================================================
-    # 5) EXIBIR VAGAS
-    # =============================================================
-    for r in vagas_rows:
-        vid, titulo, empresa, cidade_v, estado_v, tipo_v, salario, descricao, skills_v = r
+    # Ordenar por match score
+    ranking = []
+    for row in vagas_rows:
+        vid, titulo, empresa, cidade, estado, tipo, salario, desc, skills = row
+        score = calcular_match(id_curriculo, vid)
+        ranking.append((score, row))
 
-        with st.expander(f"{titulo} — {empresa}"):
+    ranking.sort(reverse=True)
 
-            st.write(f"**Descrição:** {descricao}")
-            st.write(f"**Skills necessárias:** {skills_v}")
-            st.write(f"**Local:** {cidade_v}/{estado_v}")
-            st.write(f"**Tipo:** {tipo_v}")
+    # Exibir
+    for score, row in ranking:
+        vid, titulo, empresa, cidade, estado, tipo, salario, desc, skills = row
+
+        with st.expander(f"{titulo} — {empresa} (Match Score: {score})"):
+
+            st.write(f"**Local:** {cidade}/{estado}")
+            st.write(f"**Tipo:** {tipo}")
             st.write(f"**Salário:** R$ {salario}")
+            st.write(f"**Skills:** {skills}")
+            st.write(f"**Descrição:** {desc}")
 
             # Verificar candidatura
             conn = get_connection()
@@ -142,13 +156,12 @@ def main():
             cur.execute("""
                 SELECT 1 FROM candidatura
                 WHERE id_curriculo = %s AND id_vaga = %s
-                LIMIT 1;
             """, (id_curriculo, vid))
             ja_candidatado = cur.fetchone() is not None
             conn.close()
 
             if ja_candidatado:
-                st.info("📌 Você já está inscrito nesta vaga.")
+                st.info("📌 Já está inscrito.")
             else:
                 if st.button("Candidatar-se", key=f"cand_{vid}"):
                     conn = get_connection()
