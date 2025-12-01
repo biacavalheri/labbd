@@ -7,10 +7,8 @@ from private_pages.db import get_connection
 def calcular_match(curriculo_id, vaga_id):
     conn = get_connection()
     cur = conn.cursor()
-
     cur.execute("SELECT match_final(%s, %s);", (curriculo_id, vaga_id))
     score = cur.fetchone()[0]
-
     conn.close()
     return score or 0.0
 
@@ -20,16 +18,15 @@ def calcular_match(curriculo_id, vaga_id):
 # ======================================================================
 def main():
     st.title("👥 Currículos Ativos")
-    st.write("Veja os currículos e seus níveis de aderência à vaga selecionada.")
+    st.write("Veja currículos filtrados e ordenados pela aderência à vaga selecionada.")
 
     # ---------------------------------------------------------
     # 1. Seleção da vaga
     # ---------------------------------------------------------
     conn = get_connection()
     cur = conn.cursor()
-
     cur.execute("""
-        SELECT id, titulo, empresa 
+        SELECT id, titulo, empresa, tipo_contratacao 
         FROM vaga
         ORDER BY empresa, titulo;
     """)
@@ -40,18 +37,17 @@ def main():
         st.error("Nenhuma vaga cadastrada.")
         return
 
-    vagas_dict = {f"{v[1]} ({v[2]}) — ID {v[0]}": v[0] for v in vagas}
+    vagas_dict = {f"{v[1]} ({v[2]}) — ID {v[0]}": v for v in vagas}
     vaga_str = st.selectbox("Selecione uma vaga:", list(vagas_dict.keys()))
-    vaga_id = vagas_dict[vaga_str]
+    vaga_id, vaga_titulo, vaga_empresa, vaga_tipo = vagas_dict[vaga_str]
 
     st.divider()
 
     # ---------------------------------------------------------
-    # 2. Carregar currículos
+    # 2. Carregar currículos + skills
     # ---------------------------------------------------------
     conn = get_connection()
     cur = conn.cursor()
-
     cur.execute("""
         SELECT 
             c.id,
@@ -75,19 +71,70 @@ def main():
         return
 
     # ---------------------------------------------------------
-    # 3. Calcular match de todos os currículos
+    # 3. Filtros de busca
+    # ---------------------------------------------------------
+    st.subheader("🔎 Filtros de busca")
+
+    col1, col2, col3 = st.columns(3)
+
+    texto_busca = col1.text_input("Busca por texto (nome / formação / resumo):")
+    filtro_idioma = col2.text_input("Filtrar por idioma (ex: inglês)")
+    filtro_skill = col3.text_input("Filtrar por skill (ex: Python)")
+
+    col4, col5 = st.columns(2)
+    filtro_formacao = col4.text_input("Filtrar por formação:")
+    filtro_experiencia = col5.text_input("Filtrar por experiência:")
+
+    st.divider()
+
+    # ---------------------------------------------------------
+    # 4. Aplicar filtros antes do cálculo
+    # ---------------------------------------------------------
+    def passa_filtro(c):
+        cid, nome, formacao, exp, resumo, idiomas, skills = c
+
+        if texto_busca:
+            t = texto_busca.lower()
+            if t not in nome.lower() and t not in (formacao or '').lower() and t not in (resumo or '').lower():
+                return False
+
+        if filtro_idioma:
+            if filtro_idioma.lower() not in (idiomas or '').lower():
+                return False
+
+        if filtro_skill:
+            if filtro_skill.lower() not in (skills or '').lower():
+                return False
+
+        if filtro_formacao:
+            if filtro_formacao.lower() not in (formacao or '').lower():
+                return False
+
+        if filtro_experiencia:
+            if filtro_experiencia.lower() not in (exp or '').lower():
+                return False
+
+        return True
+
+    curriculos_filtrados = [c for c in curriculos if passa_filtro(c)]
+
+    if not curriculos_filtrados:
+        st.warning("Nenhum currículo encontrado com os filtros aplicados.")
+        return
+
+    # ---------------------------------------------------------
+    # 5. Calcular match só nos currículos filtrados
     # ---------------------------------------------------------
     lista = []
-    for c in curriculos:
-        cid, nome, formacao, exp, resumo, idiomas, skills = c
+    for c in curriculos_filtrados:
+        cid, *_ = c
         score = calcular_match(cid, vaga_id)
         lista.append((score, c))
 
-    # Ordenar por match
     lista.sort(reverse=True, key=lambda x: x[0])
 
     # ---------------------------------------------------------
-    # 4. Exibir currículos com visual melhorado
+    # 6. Exibir resultados
     # ---------------------------------------------------------
     st.subheader("📊 Currículos ordenados por aderência")
 
@@ -95,7 +142,6 @@ def main():
         cid, nome, formacao, exp, resumo, idiomas, skills = c
 
         with st.expander(f"{nome} — {formacao}"):
-            
             st.markdown(f"### 🔥 Match: **{score:.2f}%**")
             st.progress(min(score / 100, 1))
 
@@ -111,7 +157,7 @@ def main():
             st.markdown("#### 🌐 Idiomas")
             st.write(idiomas or "Não informado")
 
-            # Verificar se já existe candidatura
+            # Verificar candidatura
             conn = get_connection()
             cur = conn.cursor()
             cur.execute("""
@@ -135,4 +181,3 @@ def main():
                     conn.close()
                     st.success("Oferta enviada!")
                     st.rerun()
-
