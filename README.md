@@ -17,9 +17,8 @@ https://sistema-recrutamento-labbd.streamlit.app/
 ---
 
 # 🧠 **Motor de Match Avançado (FTS + Similaridade)**  
-### 🚀 *Atualização recente do projeto*
 
-O sistema agora utiliza um **Motor de Match Avançado** baseado em:
+O sistema utiliza um **Motor de Match Avançado** baseado em:
 
 ### 🔹 1. **Full Text Search (FTS – PostgreSQL)**  
 Foi adicionada a coluna `documento_tsv` às tabelas `curriculo` e `vaga`,  
